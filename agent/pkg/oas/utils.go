@@ -3,11 +3,12 @@ package oas
 import (
 	"encoding/json"
 	"errors"
-	"github.com/chanced/openapi"
-	"github.com/up9inc/mizu/shared/logger"
-	"mizuserver/pkg/har"
 	"strconv"
 	"strings"
+
+	"github.com/chanced/openapi"
+	"github.com/up9inc/mizu/agent/pkg/har"
+	"github.com/up9inc/mizu/shared/logger"
 )
 
 func exampleResolver(ref string) (*openapi.ExampleObj, error) {

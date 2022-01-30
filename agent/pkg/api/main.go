@@ -5,24 +5,25 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"mizuserver/pkg/har"
-	"mizuserver/pkg/holder"
-	"mizuserver/pkg/providers"
 	"os"
 	"path"
 	"sort"
 	"strings"
 	"time"
 
-	"mizuserver/pkg/servicemap"
+	"github.com/up9inc/mizu/agent/pkg/har"
+	"github.com/up9inc/mizu/agent/pkg/holder"
+	"github.com/up9inc/mizu/agent/pkg/providers"
 
+	"github.com/up9inc/mizu/agent/pkg/servicemap"
+
+	"github.com/up9inc/mizu/agent/pkg/models"
+	"github.com/up9inc/mizu/agent/pkg/oas"
+	"github.com/up9inc/mizu/agent/pkg/resolver"
+	"github.com/up9inc/mizu/agent/pkg/utils"
 	"github.com/up9inc/mizu/shared"
 	"github.com/up9inc/mizu/shared/logger"
 	tapApi "github.com/up9inc/mizu/tap/api"
-	"mizuserver/pkg/models"
-	"mizuserver/pkg/oas"
-	"mizuserver/pkg/resolver"
-	"mizuserver/pkg/utils"
 
 	basenine "github.com/up9inc/basenine/client/go"
 )

@@ -4,15 +4,16 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
-	"github.com/up9inc/mizu/shared/logger"
 	"io"
 	"io/ioutil"
-	"mizuserver/pkg/har"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/up9inc/mizu/agent/pkg/har"
+	"github.com/up9inc/mizu/shared/logger"
 )
 
 func getFiles(baseDir string) (result []string, err error) {

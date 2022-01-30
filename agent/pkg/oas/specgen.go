@@ -3,15 +3,16 @@ package oas
 import (
 	"encoding/json"
 	"errors"
-	"github.com/chanced/openapi"
-	"github.com/google/uuid"
-	"github.com/up9inc/mizu/shared/logger"
 	"mime"
-	"mizuserver/pkg/har"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/chanced/openapi"
+	"github.com/google/uuid"
+	"github.com/up9inc/mizu/agent/pkg/har"
+	"github.com/up9inc/mizu/shared/logger"
 )
 
 type reqResp struct { // hello, generics in Go

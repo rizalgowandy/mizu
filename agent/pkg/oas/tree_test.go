@@ -23,7 +23,7 @@ func TestTree(t *testing.T) {
 		split := strings.Split(tc.inp, "/")
 		pathObj := new(openapi.PathObj)
 		node := tree.getOrSet(split, pathObj)
-		
+
 		fillPathParams(node, pathObj)
 
 		if node.constant != nil && *node.constant != tc.label {

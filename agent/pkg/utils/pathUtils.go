@@ -19,7 +19,6 @@ func (fis ByModTime) Less(i, j int) bool {
 	return fis[i].ModTime().Before(fis[j].ModTime())
 }
 
-
 type ByName []os.FileInfo
 
 func (fis ByName) Len() int {
@@ -33,7 +32,6 @@ func (fis ByName) Swap(i, j int) {
 func (fis ByName) Less(i, j int) bool {
 	return fis[i].Name() < fis[j].Name()
 }
-
 
 type ByCreationTime []os.FileInfo
 

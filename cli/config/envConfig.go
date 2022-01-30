@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	ApiServerRetries = "API_SERVER_RETRIES"
+	ApiServerRetries    = "API_SERVER_RETRIES"
 	ApiServerTimeoutSec = "API_SERVER_TIMEOUT_SEC"
 )
 

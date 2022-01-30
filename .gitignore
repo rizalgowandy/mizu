@@ -44,3 +44,6 @@ cypress.env.json
 */cypress/screenshots
 */cypress/videos
 */cypress/support
+
+# Target folder
+target/

@@ -54,7 +54,6 @@ func cleanUpNonRestrictedMode(ctx context.Context, cancel context.CancelFunc, ku
 		}
 	}
 
-
 	if resources, err := kubernetesProvider.ListManagedClusterRoleBindings(ctx); err != nil {
 		resourceDesc := "ClusterRoleBindings"
 		handleDeletionError(err, resourceDesc, &leftoverResources)

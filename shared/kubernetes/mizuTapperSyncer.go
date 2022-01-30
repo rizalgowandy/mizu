@@ -16,8 +16,8 @@ import (
 const updateTappersDelay = 5 * time.Second
 
 type TappedPodChangeEvent struct {
-	Added                []core.Pod
-	Removed              []core.Pod
+	Added   []core.Pod
+	Removed []core.Pod
 }
 
 // MizuTapperSyncer uses a k8s pod watch to update tapper daemonsets when targeted pods are removed or created
@@ -285,8 +285,8 @@ func (tapperSyncer *MizuTapperSyncer) updateCurrentlyTappedPods() (err error, ch
 			tapperSyncer.CurrentlyTappedPods = podsToTap
 			tapperSyncer.nodeToTappedPodMap = GetNodeHostToTappedPodsMap(tapperSyncer.CurrentlyTappedPods)
 			tapperSyncer.TapPodChangesOut <- TappedPodChangeEvent{
-				Added:                addedPods,
-				Removed:              removedPods,
+				Added:   addedPods,
+				Removed: removedPods,
 			}
 			return nil, true
 		}

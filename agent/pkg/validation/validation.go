@@ -8,7 +8,7 @@ import (
 	et "github.com/go-playground/validator/v10/translations/en"
 )
 
-func Validate(object interface{}) (errs []string){
+func Validate(object interface{}) (errs []string) {
 	validate, trans := getValidator()
 	err := validate.Struct(object)
 	return translateError(err, trans)

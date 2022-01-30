@@ -31,7 +31,7 @@ func FilteredWatch(ctx context.Context, watcherCreator WatchCreator, targetNames
 
 		go func(targetNamespace string) {
 			defer wg.Done()
-			watchRestartDebouncer := debounce.NewDebouncer(1 * time.Minute, func() {})
+			watchRestartDebouncer := debounce.NewDebouncer(1*time.Minute, func() {})
 
 			for {
 				watcher, err := watcherCreator.NewWatcher(ctx, targetNamespace)
@@ -44,7 +44,7 @@ func FilteredWatch(ctx context.Context, watcherCreator WatchCreator, targetNames
 				watcher.Stop()
 
 				select {
-				case <- ctx.Done():
+				case <-ctx.Done():
 					return
 				default:
 					break

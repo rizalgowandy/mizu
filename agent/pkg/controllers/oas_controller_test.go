@@ -1,10 +1,11 @@
 package controllers
 
 import (
-	"github.com/gin-gonic/gin"
-	"mizuserver/pkg/oas"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/up9inc/mizu/agent/pkg/oas"
 )
 
 func TestGetOASServers(t *testing.T) {
