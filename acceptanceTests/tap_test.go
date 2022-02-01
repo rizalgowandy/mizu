@@ -110,6 +110,7 @@ func TestTapGuiPort(t *testing.T) {
 				return
 			}
 
+			time.Sleep(4 * time.Hour)
 			runCypressTests(t, fmt.Sprintf("npx cypress run --spec \"cypress/integration/tests/GuiPort.js\" --env port=%d", guiPort))
 		})
 	}
