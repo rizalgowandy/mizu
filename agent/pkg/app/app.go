@@ -28,7 +28,7 @@ var (
 )
 
 func RunInApiServerMode(namespace string) *gin.Engine {
-	//configureBasenineServer(shared.BasenineHost, shared.BaseninePort)
+	configureBasenineServer(shared.BasenineHost, shared.BaseninePort)
 	startTime = time.Now().UnixNano() / int64(time.Millisecond)
 	api.StartResolving(namespace)
 
@@ -36,7 +36,7 @@ func RunInApiServerMode(namespace string) *gin.Engine {
 	filteredOutputItemsChannel := make(chan *tapApi.OutputChannelItem)
 	enableExpFeatureIfNeeded()
 	go FilterItems(outputItemsChannel, filteredOutputItemsChannel)
-	//go api.StartReadingEntries(filteredOutputItemsChannel, nil, ExtensionsMap)
+	go api.StartReadingEntries(filteredOutputItemsChannel, nil, ExtensionsMap)
 
 	syncEntriesConfig := getSyncEntriesConfig()
 	if syncEntriesConfig != nil {
