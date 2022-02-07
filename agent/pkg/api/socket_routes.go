@@ -40,6 +40,7 @@ var (
 	connectedWebsockets         map[int]*SocketConnection
 	connectedWebsocketIdCounter = 0
 	SocketGetBrowserHandler     gin.HandlerFunc
+	SocketGetTapperHandler      gin.HandlerFunc
 )
 
 func init() {
@@ -52,12 +53,16 @@ func WebSocketRoutes(app *gin.Engine, eventHandlers EventHandlers, startTime int
 		websocketHandler(c.Writer, c.Request, eventHandlers, false, startTime)
 	}
 
+	SocketGetTapperHandler = func(c *gin.Context) {
+		websocketHandler(c.Writer, c.Request, eventHandlers, true, startTime)
+	}
+
 	app.GET("/ws", func(c *gin.Context) {
 		SocketGetBrowserHandler(c)
 	})
 
 	app.GET("/wsTapper", func(c *gin.Context) { // TODO: add m2m authentication to this route
-		websocketHandler(c.Writer, c.Request, eventHandlers, true, startTime)
+		SocketGetTapperHandler(c)
 	})
 }
 
