@@ -30,18 +30,14 @@ type SocketConnection struct {
 	isTapper      bool
 }
 
-var (
-	websocketUpgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
+var websocketUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
-	websocketIdsLock            = sync.Mutex{}
-	connectedWebsockets         map[int]*SocketConnection
-	connectedWebsocketIdCounter = 0
-	SocketGetBrowserHandler     gin.HandlerFunc
-	SocketGetTapperHandler      gin.HandlerFunc
-)
+var websocketIdsLock = sync.Mutex{}
+var connectedWebsockets map[int]*SocketConnection
+var connectedWebsocketIdCounter = 0
 
 func init() {
 	websocketUpgrader.CheckOrigin = func(r *http.Request) bool { return true } // like cors for web socket
@@ -49,20 +45,12 @@ func init() {
 }
 
 func WebSocketRoutes(app *gin.Engine, eventHandlers EventHandlers, startTime int64) {
-	SocketGetBrowserHandler = func(c *gin.Context) {
-		websocketHandler(c.Writer, c.Request, eventHandlers, false, startTime)
-	}
-
-	SocketGetTapperHandler = func(c *gin.Context) {
-		websocketHandler(c.Writer, c.Request, eventHandlers, true, startTime)
-	}
-
 	app.GET("/ws", func(c *gin.Context) {
-		SocketGetBrowserHandler(c)
+		websocketHandler(c.Writer, c.Request, eventHandlers, false, startTime)
 	})
 
 	app.GET("/wsTapper", func(c *gin.Context) { // TODO: add m2m authentication to this route
-		SocketGetTapperHandler(c)
+		websocketHandler(c.Writer, c.Request, eventHandlers, true, startTime)
 	})
 }
 
