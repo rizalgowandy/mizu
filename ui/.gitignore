@@ -16,7 +16,6 @@
 
 # production
 /build
-/build-ent
 
 # misc
 .DS_Store

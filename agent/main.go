@@ -97,12 +97,7 @@ func hostApi(socketHarOutputChannel chan<- *tapApi.OutputChannelItem) *gin.Engin
 
 	app.Use(disableRootStaticCache())
 
-	var staticFolder string
-	if config.Config.StandaloneMode {
-		staticFolder = "./site-standalone"
-	} else {
-		staticFolder = "./site"
-	}
+	staticFolder := "./site"
 
 	indexStaticFile := staticFolder + "/index.html"
 	if err := setUIFlags(indexStaticFile); err != nil {
@@ -118,11 +113,6 @@ func hostApi(socketHarOutputChannel chan<- *tapApi.OutputChannelItem) *gin.Engin
 
 	api.WebSocketRoutes(app, &eventHandlers, startTime)
 
-	if config.Config.StandaloneMode {
-		routes.ConfigRoutes(app)
-		routes.UserRoutes(app)
-		routes.InstallRoutes(app)
-	}
 	if config.Config.OAS {
 		routes.OASRoutes(app)
 	}
