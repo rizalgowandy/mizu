@@ -9,7 +9,7 @@ var ignoredCtypes = []string{"application/javascript", "application/x-javascript
 
 var ignoredHeaders = []string{
 	"a-im", "accept",
-	"authorization", "cache-control", "connection", "content-encoding", "content-length", "content-type", "cookie",
+	"authorization", "cache-control", "connection", "content-encoding", "content-length", "content-range", "content-type", "cookie",
 	"date", "dnt", "expect", "forwarded", "from", "front-end-https", "host", "http2-settings",
 	"max-forwards", "origin", "pragma", "proxy-authorization", "proxy-connection", "range", "referer",
 	"save-data", "te", "trailer", "transfer-encoding", "upgrade", "upgrade-insecure-requests", "x-download-options",
@@ -24,7 +24,7 @@ var ignoredHeaders = []string{
 	"keep-alive", "etag", "alt-svc", "x-csrf-token", "x-ua-compatible", "vary", "x-powered-by",
 	"age", "allow", "www-authenticate", "expect-ct", "timing-allow-origin", "referrer-policy",
 	"x-aspnet-version", "x-aspnetmvc-version", "x-timer", "x-abuse-info", "x-mod-pagespeed",
-	"duration_ms", // UP9 custom
+	"duration_ms",
 }
 
 var ignoredHeaderPrefixes = []string{

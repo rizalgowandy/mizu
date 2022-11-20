@@ -2,13 +2,13 @@ package oas
 
 import (
 	"encoding/json"
-	"github.com/up9inc/mizu/agent/pkg/har"
+	"github.com/kubeshark/kubeshark/agent/pkg/har"
 	"testing"
 	"time"
 )
 
 func TestOASGen(t *testing.T) {
-	gen := GetDefaultOasGeneratorInstance()
+	gen := GetDefaultOasGeneratorInstance(-1)
 
 	e := new(har.Entry)
 	err := json.Unmarshal([]byte(`{"startedDateTime": "20000101","request": {"url": "https://host/path", "method": "GET"}, "response": {"status": 200}}`), e)

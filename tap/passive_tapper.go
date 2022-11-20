@@ -14,17 +14,17 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
+	"github.com/kubeshark/kubeshark/logger"
+	"github.com/kubeshark/kubeshark/tap/api"
+	"github.com/kubeshark/kubeshark/tap/diagnose"
+	"github.com/kubeshark/kubeshark/tap/source"
+	"github.com/kubeshark/kubeshark/tap/tlstapper"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/struCoder/pidusage"
-	"github.com/up9inc/mizu/logger"
-	"github.com/up9inc/mizu/tap/api"
-	"github.com/up9inc/mizu/tap/diagnose"
-	"github.com/up9inc/mizu/tap/source"
-	"github.com/up9inc/mizu/tap/tlstapper"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -45,22 +45,27 @@ var quiet = flag.Bool("quiet", false, "Be quiet regarding errors")
 var hexdumppkt = flag.Bool("dumppkt", false, "Dump packet as hex")
 var procfs = flag.String("procfs", "/proc", "The procfs directory, used when mapping host volumes into a container")
 var ignoredPorts = flag.String("ignore-ports", "", "A comma separated list of ports to ignore")
+var maxLiveStreams = flag.Int("max-live-streams", 500, "Maximum live streams to handle concurrently")
 
 // capture
 var iface = flag.String("i", "en0", "Interface to read packets from")
 var fname = flag.String("r", "", "Filename to read from, overrides -i")
 var snaplen = flag.Int("s", 65536, "Snap length (number of bytes max to read per packet")
-var tstype = flag.String("timestamp_type", "", "Type of timestamps to use")
+var targetSizeMb = flag.Int("target-size-mb", 8, "AF_PACKET target block size (MB)")
+var tstype = flag.String("timestamp-type", "", "Type of timestamps to use")
 var promisc = flag.Bool("promisc", true, "Set promiscuous mode")
 var staleTimeoutSeconds = flag.Int("staletimout", 120, "Max time in seconds to keep connections which don't transmit data")
 var servicemesh = flag.Bool("servicemesh", false, "Record decrypted traffic if the cluster is configured with a service mesh and with mtls")
 var tls = flag.Bool("tls", false, "Enable TLS tapper")
+var packetCapture = flag.String("packet-capture", "libpcap", "Packet capture backend. Possible values: libpcap, af_packet")
 
 var memprofile = flag.String("memprofile", "", "Write memory profile")
 
 type TapOpts struct {
-	HostMode         bool
-	IgnoredPorts     []uint16
+	HostMode               bool
+	IgnoredPorts           []uint16
+	maxLiveStreams         int
+	staleConnectionTimeout time.Duration
 }
 
 var extensions []*api.Extension                     // global
@@ -89,7 +94,13 @@ func StartPassiveTapper(opts *TapOpts, outputItems chan *api.OutputChannelItem, 
 		diagnose.StartMemoryProfiler(os.Getenv(MemoryProfilingDumpPath), os.Getenv(MemoryProfilingTimeIntervalSeconds))
 	}
 
-	assembler := initializePassiveTapper(opts, outputItems, streamsMap)
+	assembler, err := initializePassiveTapper(opts, outputItems, streamsMap)
+
+	if err != nil {
+		logger.Log.Errorf("Error initializing tapper %w", err)
+		return
+	}
+
 	go startPassiveTapper(streamsMap, assembler)
 }
 
@@ -100,7 +111,7 @@ func UpdateTapTargets(newTapTargets []v1.Pod) {
 
 	packetSourceManager.UpdatePods(tapTargets, !*nodefrag, mainPacketInputChan)
 
-	if tlsTapperInstance != nil {
+	if tlsTapperInstance != nil && os.Getenv("KUBESHARK_GLOBAL_GOLANG_PID") == "" {
 		if err := tlstapper.UpdateTapTargets(tlsTapperInstance, &tapTargets, *procfs); err != nil {
 			tlstapper.LogError(err)
 			success = false
@@ -124,7 +135,7 @@ func printNewTapTargets(success bool) {
 	}
 }
 
-func printPeriodicStats(cleaner *Cleaner) {
+func printPeriodicStats(cleaner *Cleaner, assembler *tcpAssembler) {
 	statsPeriod := time.Second * time.Duration(*statsevery)
 	ticker := time.NewTicker(statsPeriod)
 
@@ -162,8 +173,10 @@ func printPeriodicStats(cleaner *Cleaner) {
 			}
 		}
 		logger.Log.Infof(
-			"mem: %d, goroutines: %d, cpu: %f, cores: %d/%d, rss: %f",
+			"heap-alloc: %d, heap-idle: %d, heap-objects: %d, goroutines: %d, cpu: %f, cores: %d/%d, rss: %f",
 			memStats.HeapAlloc,
+			memStats.HeapIdle,
+			memStats.HeapObjects,
 			runtime.NumGoroutine(),
 			sysInfo.CPU,
 			logicalCoreCount,
@@ -172,15 +185,19 @@ func printPeriodicStats(cleaner *Cleaner) {
 
 		// Since the last print
 		cleanStats := cleaner.dumpStats()
+		assemblerStats := assembler.DumpStats()
 		logger.Log.Infof(
 			"cleaner - flushed connections: %d, closed connections: %d, deleted messages: %d",
-			cleanStats.flushed,
-			cleanStats.closed,
+			assemblerStats.flushedConnections,
+			assemblerStats.closedConnections,
 			cleanStats.deleted,
 		)
 		currentAppStats := diagnose.AppStats.DumpStats()
 		appStatsJSON, _ := json.Marshal(currentAppStats)
 		logger.Log.Infof("app stats - %v", string(appStatsJSON))
+
+		// At the moment
+		logger.Log.Infof("assembler-stats: %s, packet-source-stats: %s", assembler.Dump(), packetSourceManager.Stats())
 	}
 }
 
@@ -195,20 +212,21 @@ func initializePacketSources() error {
 	}
 
 	behaviour := source.TcpPacketSourceBehaviour{
-		SnapLength:  *snaplen,
-		Promisc:     *promisc,
-		Tstype:      *tstype,
-		DecoderName: *decoder,
-		Lazy:        *lazy,
-		BpfFilter:   bpffilter,
+		SnapLength:   *snaplen,
+		TargetSizeMb: *targetSizeMb,
+		Promisc:      *promisc,
+		Tstype:       *tstype,
+		DecoderName:  *decoder,
+		Lazy:         *lazy,
+		BpfFilter:    bpffilter,
 	}
 
 	var err error
-	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *fname, *iface, *servicemesh, tapTargets, behaviour, !*nodefrag, mainPacketInputChan)
+	packetSourceManager, err = source.NewPacketSourceManager(*procfs, *fname, *iface, *servicemesh, tapTargets, behaviour, !*nodefrag, *packetCapture, mainPacketInputChan)
 	return err
 }
 
-func initializePassiveTapper(opts *TapOpts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) *tcpAssembler {
+func initializePassiveTapper(opts *TapOpts, outputItems chan *api.OutputChannelItem, streamsMap api.TcpStreamMap) (*tcpAssembler, error) {
 	diagnose.InitializeErrorsMap(*debug, *verbose, *quiet)
 	diagnose.InitializeTapperInternalStats()
 
@@ -219,10 +237,10 @@ func initializePassiveTapper(opts *TapOpts, outputItems chan *api.OutputChannelI
 	}
 
 	opts.IgnoredPorts = append(opts.IgnoredPorts, buildIgnoredPortsList(*ignoredPorts)...)
+	opts.maxLiveStreams = *maxLiveStreams
+	opts.staleConnectionTimeout = time.Duration(*staleTimeoutSeconds) * time.Second
 
-	assembler := NewTcpAssembler(outputItems, streamsMap, opts)
-
-	return assembler
+	return NewTcpAssembler(outputItems, streamsMap, opts)
 }
 
 func startPassiveTapper(streamsMap api.TcpStreamMap, assembler *tcpAssembler) {
@@ -233,14 +251,13 @@ func startPassiveTapper(streamsMap api.TcpStreamMap, assembler *tcpAssembler) {
 	staleConnectionTimeout := time.Second * time.Duration(*staleTimeoutSeconds)
 	cleaner := Cleaner{
 		assembler:         assembler.Assembler,
-		assemblerMutex:    &assembler.assemblerMutex,
 		cleanPeriod:       cleanPeriod,
 		connectionTimeout: staleConnectionTimeout,
 		streamsMap:        streamsMap,
 	}
 	cleaner.start()
 
-	go printPeriodicStats(&cleaner)
+	go printPeriodicStats(&cleaner, assembler)
 
 	assembler.processPackets(*hexdumppkt, mainPacketInputChan)
 
@@ -277,8 +294,17 @@ func startTlsTapper(extension *api.Extension, outputItems chan *api.OutputChanne
 
 	// A quick way to instrument libssl.so without PID filtering - used for debuging and troubleshooting
 	//
-	if os.Getenv("MIZU_GLOBAL_SSL_LIBRARY") != "" {
-		if err := tls.GlobalTap(os.Getenv("MIZU_GLOBAL_SSL_LIBRARY")); err != nil {
+	if os.Getenv("KUBESHARK_GLOBAL_SSL_LIBRARY") != "" {
+		if err := tls.GlobalSSLLibTap(os.Getenv("KUBESHARK_GLOBAL_SSL_LIBRARY")); err != nil {
+			tlstapper.LogError(err)
+			return nil
+		}
+	}
+
+	// A quick way to instrument Go `crypto/tls` without PID filtering - used for debuging and troubleshooting
+	//
+	if os.Getenv("KUBESHARK_GLOBAL_GOLANG_PID") != "" {
+		if err := tls.GlobalGoTap(*procfs, os.Getenv("KUBESHARK_GLOBAL_GOLANG_PID")); err != nil {
 			tlstapper.LogError(err)
 			return nil
 		}

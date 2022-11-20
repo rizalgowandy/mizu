@@ -3,14 +3,14 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/up9inc/mizu/agent/pkg/dependency"
-	"github.com/up9inc/mizu/agent/pkg/entries"
-	"github.com/up9inc/mizu/agent/pkg/models"
-	"github.com/up9inc/mizu/agent/pkg/validation"
+	"github.com/kubeshark/kubeshark/agent/pkg/dependency"
+	"github.com/kubeshark/kubeshark/agent/pkg/entries"
+	"github.com/kubeshark/kubeshark/agent/pkg/models"
+	"github.com/kubeshark/kubeshark/agent/pkg/validation"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/up9inc/mizu/logger"
+	"github.com/kubeshark/kubeshark/logger"
 )
 
 func HandleEntriesError(c *gin.Context, err error) bool {
@@ -44,10 +44,10 @@ func GetEntries(c *gin.Context) {
 	}
 
 	entriesProvider := dependency.GetInstance(dependency.EntriesProvider).(entries.EntriesProvider)
-	entries, metadata, err := entriesProvider.GetEntries(entriesRequest)
+	entryWrappers, metadata, err := entriesProvider.GetEntries(entriesRequest)
 	if !HandleEntriesError(c, err) {
 		baseEntries := make([]interface{}, 0)
-		for _, entry := range entries {
+		for _, entry := range entryWrappers {
 			baseEntries = append(baseEntries, entry.Base)
 		}
 		c.JSON(http.StatusOK, models.EntriesResponse{

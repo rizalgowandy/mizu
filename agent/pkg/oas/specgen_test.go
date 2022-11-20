@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/chanced/openapi"
-	"github.com/up9inc/mizu/agent/pkg/har"
-	"github.com/up9inc/mizu/logger"
+	"github.com/kubeshark/kubeshark/agent/pkg/har"
+	"github.com/kubeshark/kubeshark/logger"
 	"github.com/wI2L/jsondiff"
 )
 
@@ -23,7 +23,7 @@ func outputSpec(label string, spec *openapi.OpenAPI, t *testing.T) string {
 		panic(err)
 	}
 
-	if os.Getenv("MIZU_OAS_WRITE_FILES") != "" {
+	if os.Getenv("KUBESHARK_OAS_WRITE_FILES") != "" {
 		path := "./oas-samples"
 		err := os.MkdirAll(path, 0o755)
 		if err != nil {
@@ -48,7 +48,7 @@ func TestEntries(t *testing.T) {
 		t.FailNow()
 	}
 
-	gen := NewDefaultOasGenerator()
+	gen := NewDefaultOasGenerator(-1)
 	gen.serviceSpecs = new(sync.Map)
 	loadStartingOAS("test_artifacts/catalogue.json", "catalogue", gen.serviceSpecs)
 	loadStartingOAS("test_artifacts/trcc.json", "trcc-api-service", gen.serviceSpecs)
@@ -122,7 +122,7 @@ func TestEntries(t *testing.T) {
 }
 
 func TestFileSingle(t *testing.T) {
-	gen := NewDefaultOasGenerator()
+	gen := NewDefaultOasGenerator(-1)
 	gen.serviceSpecs = new(sync.Map)
 	// loadStartingOAS()
 	file := "test_artifacts/params.har"
@@ -169,7 +169,7 @@ func TestFileSingle(t *testing.T) {
 			t.FailNow()
 		}
 
-		if os.Getenv("MIZU_OAS_WRITE_FILES") != "" {
+		if os.Getenv("KUBESHARK_OAS_WRITE_FILES") != "" {
 			err = ioutil.WriteFile(file+".spec.json", []byte(specText), 0644)
 			if err != nil {
 				panic(err)
@@ -212,7 +212,7 @@ func loadStartingOAS(file string, label string, specs *sync.Map) {
 }
 
 func TestEntriesNegative(t *testing.T) {
-	gen := NewDefaultOasGenerator()
+	gen := NewDefaultOasGenerator(-1)
 	gen.serviceSpecs = new(sync.Map)
 	files := []string{"invalid"}
 	_, err := feedEntries(files, false, gen)
@@ -223,7 +223,7 @@ func TestEntriesNegative(t *testing.T) {
 }
 
 func TestEntriesPositive(t *testing.T) {
-	gen := NewDefaultOasGenerator()
+	gen := NewDefaultOasGenerator(-1)
 	gen.serviceSpecs = new(sync.Map)
 	files := []string{"test_artifacts/params.har"}
 	_, err := feedEntries(files, false, gen)

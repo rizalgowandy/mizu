@@ -1,6 +1,6 @@
 import * as axios from "axios";
 
-export const MizuWebsocketURL = process.env.REACT_APP_OVERRIDE_WS_URL ? process.env.REACT_APP_OVERRIDE_WS_URL :
+export const KubesharkWebsocketURL = process.env.REACT_APP_OVERRIDE_WS_URL ? process.env.REACT_APP_OVERRIDE_WS_URL :
     window.location.protocol === 'https:' ? `wss://${window.location.host}/ws` : `ws://${window.location.host}/ws`;
 
 const CancelToken = axios.CancelToken;
@@ -44,11 +44,6 @@ export default class Api {
         return response.data;
     }
 
-    analyzeStatus = async () => {
-        const response = await client.get("/status/analyze");
-        return response.data;
-    }
-
     getEntry = async (id, query) => {
         const response = await client.get(`/entries/${id}?query=${encodeURIComponent(query)}`);
         return response.data;
@@ -59,6 +54,11 @@ export default class Api {
             console.error(thrown.message);
             return {};
         });
+        return response.data;
+    }
+
+    replayRequest = async (requestData) => {
+        const response = await client.post(`/replay/`, requestData);
         return response.data;
     }
 
@@ -114,5 +114,10 @@ export default class Api {
             timeout: 31000,
             headers
         });
+    }
+
+    getTrafficStats = async (startTimeMs, endTimeMs) => {
+        const response = await client.get("/status/trafficStats", {params: {startTimeMs, endTimeMs}});
+        return response.data;
     }
 }

@@ -10,12 +10,13 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 
+	"github.com/kubeshark/kubeshark/logger"
+	"github.com/kubeshark/kubeshark/shared"
+	"github.com/kubeshark/kubeshark/shared/semver"
+	"github.com/kubeshark/kubeshark/tap/api"
 	"github.com/op/go-logging"
-	"github.com/up9inc/mizu/logger"
-	"github.com/up9inc/mizu/shared"
-	"github.com/up9inc/mizu/shared/semver"
-	"github.com/up9inc/mizu/tap/api"
 	auth "k8s.io/api/authorization/v1"
 	core "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
@@ -32,7 +33,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
-	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	watchtools "k8s.io/client-go/tools/watch"
@@ -41,13 +41,13 @@ import (
 type Provider struct {
 	clientSet        *kubernetes.Clientset
 	kubernetesConfig clientcmd.ClientConfig
-	clientConfig     restclient.Config
+	clientConfig     rest.Config
 	managedBy        string
 	createdBy        string
 }
 
 const (
-	fieldManagerName = "mizu-manager"
+	fieldManagerName = "kubeshark-manager"
 	procfsVolumeName = "proc"
 	procfsMountPath  = "/hostproc"
 	sysfsVolumeName  = "sys"
@@ -60,21 +60,21 @@ func NewProvider(kubeConfigPath string, contextName string) (*Provider, error) {
 	if err != nil {
 		if clientcmd.IsEmptyConfig(err) {
 			return nil, fmt.Errorf("couldn't find the kube config file, or file is empty (%s)\n"+
-				"you can set alternative kube config file path by adding the kube-config-path field to the mizu config file, err:  %w", kubeConfigPath, err)
+				"you can set alternative kube config file path by adding the kube-config-path field to the kubeshark config file, err:  %w", kubeConfigPath, err)
 		}
 		if clientcmd.IsConfigurationInvalid(err) {
 			return nil, fmt.Errorf("invalid kube config file (%s)\n"+
-				"you can set alternative kube config file path by adding the kube-config-path field to the mizu config file, err:  %w", kubeConfigPath, err)
+				"you can set alternative kube config file path by adding the kube-config-path field to the kubeshark config file, err:  %w", kubeConfigPath, err)
 		}
 
 		return nil, fmt.Errorf("error while using kube config (%s)\n"+
-			"you can set alternative kube config file path by adding the kube-config-path field to the mizu config file, err:  %w", kubeConfigPath, err)
+			"you can set alternative kube config file path by adding the kube-config-path field to the kubeshark config file, err:  %w", kubeConfigPath, err)
 	}
 
 	clientSet, err := getClientSet(restClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error while using kube config (%s)\n"+
-			"you can set alternative kube config file path by adding the kube-config-path field to the mizu config file, err:  %w", kubeConfigPath, err)
+			"you can set alternative kube config file path by adding the kube-config-path field to the kubeshark config file, err:  %w", kubeConfigPath, err)
 	}
 
 	logger.Log.Debugf("K8s client config, host: %s, api path: %s, user agent: %s", restClientConfig.Host, restClientConfig.APIPath, restClientConfig.UserAgent)
@@ -83,11 +83,12 @@ func NewProvider(kubeConfigPath string, contextName string) (*Provider, error) {
 		clientSet:        clientSet,
 		kubernetesConfig: kubernetesConfig,
 		clientConfig:     *restClientConfig,
-		managedBy:        LabelValueMizu,
-		createdBy:        LabelValueMizuCLI,
+		managedBy:        LabelValueKubeshark,
+		createdBy:        LabelValueKubesharkCLI,
 	}, nil
 }
 
+//NewProviderInCluster Used in another repo that calls this function
 func NewProviderInCluster() (*Provider, error) {
 	restClientConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -102,14 +103,14 @@ func NewProviderInCluster() (*Provider, error) {
 		clientSet:        clientSet,
 		kubernetesConfig: nil, // not relevant in cluster
 		clientConfig:     *restClientConfig,
-		managedBy:        LabelValueMizu,
-		createdBy:        LabelValueMizuAgent,
+		managedBy:        LabelValueKubeshark,
+		createdBy:        LabelValueKubesharkAgent,
 	}, nil
 }
 
 func (provider *Provider) CurrentNamespace() (string, error) {
 	if provider.kubernetesConfig == nil {
-		return "", errors.New("kubernetesConfig is nil, mizu cli will not work with in-cluster kubernetes config, use a kubeconfig file when initializing the Provider")
+		return "", errors.New("kubernetesConfig is nil, kubeshark cli will not work with in-cluster kubernetes config, use a kubeconfig file when initializing the Provider")
 	}
 	ns, _, err := provider.kubernetesConfig.Namespace()
 	return ns, err
@@ -176,7 +177,6 @@ type ApiServerOptions struct {
 	KetoImage             string
 	ServiceAccountName    string
 	IsNamespaceRestricted bool
-	SyncEntriesConfig     *shared.SyncEntriesConfig
 	MaxEntriesDBSizeBytes int64
 	Resources             shared.Resources
 	ImagePullPolicy       core.PullPolicy
@@ -184,15 +184,7 @@ type ApiServerOptions struct {
 	Profiler              bool
 }
 
-func (provider *Provider) GetMizuApiServerPodObject(opts *ApiServerOptions, mountVolumeClaim bool, volumeClaimName string, createAuthContainer bool) (*core.Pod, error) {
-	var marshaledSyncEntriesConfig []byte
-	if opts.SyncEntriesConfig != nil {
-		var err error
-		if marshaledSyncEntriesConfig, err = json.Marshal(opts.SyncEntriesConfig); err != nil {
-			return nil, err
-		}
-	}
-
+func (provider *Provider) GetKubesharkApiServerPodObject(opts *ApiServerOptions, mountVolumeClaim bool, volumeClaimName string, createAuthContainer bool) (*core.Pod, error) {
 	configMapVolume := &core.ConfigMapVolumeSource{}
 	configMapVolume.Name = ConfigMapName
 
@@ -214,7 +206,7 @@ func (provider *Provider) GetMizuApiServerPodObject(opts *ApiServerOptions, moun
 	}
 
 	command := []string{
-		"./mizuagent",
+		"./kubesharkagent",
 		"--api-server",
 	}
 
@@ -264,10 +256,6 @@ func (provider *Provider) GetMizuApiServerPodObject(opts *ApiServerOptions, moun
 			VolumeMounts:    volumeMounts,
 			Command:         command,
 			Env: []core.EnvVar{
-				{
-					Name:  shared.SyncEntriesConfigEnvVar,
-					Value: string(marshaledSyncEntriesConfig),
-				},
 				{
 					Name:  shared.LogLevelEnvVar,
 					Value: opts.LogLevel.String(),
@@ -395,11 +383,11 @@ func (provider *Provider) GetMizuApiServerPodObject(opts *ApiServerOptions, moun
 			Tolerations: []core.Toleration{
 				{
 					Operator: core.TolerationOpExists,
-					Effect: core.TaintEffectNoExecute,
+					Effect:   core.TaintEffectNoExecute,
 				},
 				{
 					Operator: core.TolerationOpExists,
-					Effect: core.TaintEffectNoSchedule,
+					Effect:   core.TaintEffectNoSchedule,
 				},
 			},
 		},
@@ -507,14 +495,14 @@ func (provider *Provider) doesResourceExist(resource interface{}, err error) (bo
 	return resource != nil, nil
 }
 
-func (provider *Provider) CreateMizuRBAC(ctx context.Context, namespace string, serviceAccountName string, clusterRoleName string, clusterRoleBindingName string, version string, resources []string) error {
+func (provider *Provider) CreateKubesharkRBAC(ctx context.Context, namespace string, serviceAccountName string, clusterRoleName string, clusterRoleBindingName string, version string, resources []string) error {
 	serviceAccount := &core.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceAccountName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 	}
@@ -522,9 +510,9 @@ func (provider *Provider) CreateMizuRBAC(ctx context.Context, namespace string, 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 		Rules: []rbac.PolicyRule{
@@ -539,9 +527,9 @@ func (provider *Provider) CreateMizuRBAC(ctx context.Context, namespace string, 
 		ObjectMeta: metav1.ObjectMeta{
 			Name: clusterRoleBindingName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 		RoleRef: rbac.RoleRef{
@@ -572,14 +560,14 @@ func (provider *Provider) CreateMizuRBAC(ctx context.Context, namespace string, 
 	return nil
 }
 
-func (provider *Provider) CreateMizuRBACNamespaceRestricted(ctx context.Context, namespace string, serviceAccountName string, roleName string, roleBindingName string, version string) error {
+func (provider *Provider) CreateKubesharkRBACNamespaceRestricted(ctx context.Context, namespace string, serviceAccountName string, roleName string, roleBindingName string, version string) error {
 	serviceAccount := &core.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: serviceAccountName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 	}
@@ -587,9 +575,9 @@ func (provider *Provider) CreateMizuRBACNamespaceRestricted(ctx context.Context,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 		Rules: []rbac.PolicyRule{
@@ -604,9 +592,9 @@ func (provider *Provider) CreateMizuRBACNamespaceRestricted(ctx context.Context,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: roleBindingName,
 			Labels: map[string]string{
-				"mizu-cli-version": version,
-				LabelManagedBy:     provider.managedBy,
-				LabelCreatedBy:     provider.createdBy,
+				"kubeshark-cli-version": version,
+				LabelManagedBy:          provider.managedBy,
+				LabelCreatedBy:          provider.createdBy,
 			},
 		},
 		RoleRef: rbac.RoleRef{
@@ -697,15 +685,9 @@ func (provider *Provider) handleRemovalError(err error) error {
 	return err
 }
 
-func (provider *Provider) CreateConfigMap(ctx context.Context, namespace string, configMapName string, serializedValidationRules string, serializedContract string, serializedMizuConfig string) error {
+func (provider *Provider) CreateConfigMap(ctx context.Context, namespace string, configMapName string, serializedKubesharkConfig string) error {
 	configMapData := make(map[string]string)
-	if serializedValidationRules != "" {
-		configMapData[shared.ValidationRulesFileName] = serializedValidationRules
-	}
-	if serializedContract != "" {
-		configMapData[shared.ContractFileName] = serializedContract
-	}
-	configMapData[shared.ConfigFileName] = serializedMizuConfig
+	configMapData[shared.ConfigFileName] = serializedKubesharkConfig
 
 	configMap := &core.ConfigMap{
 		TypeMeta: metav1.TypeMeta{
@@ -727,36 +709,37 @@ func (provider *Provider) CreateConfigMap(ctx context.Context, namespace string,
 	return nil
 }
 
-func (provider *Provider) ApplyMizuTapperDaemonSet(ctx context.Context, namespace string, daemonSetName string, podImage string, tapperPodName string, apiServerPodIp string, nodeNames []string, serviceAccountName string, resources shared.Resources, imagePullPolicy core.PullPolicy, mizuApiFilteringOptions api.TrafficFilteringOptions, logLevel logging.Level, serviceMesh bool, tls bool) error {
+func (provider *Provider) ApplyKubesharkTapperDaemonSet(ctx context.Context, namespace string, daemonSetName string, podImage string, tapperPodName string, apiServerPodIp string, nodeNames []string, serviceAccountName string, resources shared.Resources, imagePullPolicy core.PullPolicy, kubesharkApiFilteringOptions api.TrafficFilteringOptions, logLevel logging.Level, serviceMesh bool, tls bool, maxLiveStreams int) error {
 	logger.Log.Debugf("Applying %d tapper daemon sets, ns: %s, daemonSetName: %s, podImage: %s, tapperPodName: %s", len(nodeNames), namespace, daemonSetName, podImage, tapperPodName)
 
 	if len(nodeNames) == 0 {
 		return fmt.Errorf("daemon set %s must tap at least 1 pod", daemonSetName)
 	}
 
-	mizuApiFilteringOptionsJsonStr, err := json.Marshal(mizuApiFilteringOptions)
+	kubesharkApiFilteringOptionsJsonStr, err := json.Marshal(kubesharkApiFilteringOptions)
 	if err != nil {
 		return err
 	}
 
-	mizuCmd := []string{
-		"./mizuagent",
+	kubesharkCmd := []string{
+		"./kubesharkagent",
 		"-i", "any",
 		"--tap",
 		"--api-server-address", fmt.Sprintf("ws://%s/wsTapper", apiServerPodIp),
 		"--nodefrag",
+		"--max-live-streams", strconv.Itoa(maxLiveStreams),
 	}
 
 	if serviceMesh {
-		mizuCmd = append(mizuCmd, "--servicemesh")
+		kubesharkCmd = append(kubesharkCmd, "--servicemesh")
 	}
 
 	if tls {
-		mizuCmd = append(mizuCmd, "--tls")
+		kubesharkCmd = append(kubesharkCmd, "--tls")
 	}
 
 	if serviceMesh || tls {
-		mizuCmd = append(mizuCmd, "--procfs", procfsMountPath)
+		kubesharkCmd = append(kubesharkCmd, "--procfs", procfsMountPath)
 	}
 
 	agentContainer := applyconfcore.Container()
@@ -783,11 +766,11 @@ func (provider *Provider) ApplyMizuTapperDaemonSet(ctx context.Context, namespac
 
 	agentContainer.WithSecurityContext(applyconfcore.SecurityContext().WithCapabilities(caps))
 
-	agentContainer.WithCommand(mizuCmd...)
+	agentContainer.WithCommand(kubesharkCmd...)
 	agentContainer.WithEnv(
 		applyconfcore.EnvVar().WithName(shared.LogLevelEnvVar).WithValue(logLevel.String()),
 		applyconfcore.EnvVar().WithName(shared.HostModeEnvVar).WithValue("1"),
-		applyconfcore.EnvVar().WithName(shared.MizuFilteringOptionsEnvVar).WithValue(string(mizuApiFilteringOptionsJsonStr)),
+		applyconfcore.EnvVar().WithName(shared.KubesharkFilteringOptionsEnvVar).WithValue(string(kubesharkApiFilteringOptionsJsonStr)),
 	)
 	agentContainer.WithEnv(
 		applyconfcore.EnvVar().WithName(shared.NodeNameEnvVar).WithValueFrom(
@@ -904,13 +887,13 @@ func (provider *Provider) ApplyMizuTapperDaemonSet(ctx context.Context, namespac
 	return err
 }
 
-func (provider *Provider) ResetMizuTapperDaemonSet(ctx context.Context, namespace string, daemonSetName string, podImage string, tapperPodName string) error {
+func (provider *Provider) ResetKubesharkTapperDaemonSet(ctx context.Context, namespace string, daemonSetName string, podImage string, tapperPodName string) error {
 	agentContainer := applyconfcore.Container()
 	agentContainer.WithName(tapperPodName)
 	agentContainer.WithImage(podImage)
 
 	nodeSelectorRequirement := applyconfcore.NodeSelectorRequirement()
-	nodeSelectorRequirement.WithKey("mizu-non-existing-label")
+	nodeSelectorRequirement.WithKey("kubeshark-non-existing-label")
 	nodeSelectorRequirement.WithOperator(core.NodeSelectorOpExists)
 	nodeSelectorTerm := applyconfcore.NodeSelectorTerm()
 	nodeSelectorTerm.WithMatchExpressions(nodeSelectorRequirement)
@@ -1074,9 +1057,9 @@ func (provider *Provider) ListManagedRoleBindings(ctx context.Context, namespace
 	return provider.clientSet.RbacV1().RoleBindings(namespace).List(ctx, listOptions)
 }
 
-// ValidateNotProxy We added this after a customer tried to run mizu from lens, which used len's kube config, which have cluster server configuration, which points to len's local proxy.
+// ValidateNotProxy We added this after a customer tried to run kubeshark from lens, which used len's kube config, which have cluster server configuration, which points to len's local proxy.
 // The workaround was to use the user's local default kube config.
-// For now - we are blocking the option to run mizu through a proxy to k8s server
+// For now - we are blocking the option to run kubeshark through a proxy to k8s server
 func (provider *Provider) ValidateNotProxy() error {
 	kubernetesUrl, err := url.Parse(provider.clientConfig.Host)
 	if err != nil {
@@ -1113,7 +1096,7 @@ func (provider *Provider) GetKubernetesVersion() (*semver.SemVersion, error) {
 	return &serverVersionSemVer, nil
 }
 
-func getClientSet(config *restclient.Config) (*kubernetes.Clientset, error) {
+func getClientSet(config *rest.Config) (*kubernetes.Clientset, error) {
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err

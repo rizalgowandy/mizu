@@ -2,7 +2,7 @@ package routes
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/up9inc/mizu/agent/pkg/controllers"
+	"github.com/kubeshark/kubeshark/agent/pkg/controllers"
 )
 
 func StatusRoutes(ginApp *gin.Engine) {
@@ -15,11 +15,8 @@ func StatusRoutes(ginApp *gin.Engine) {
 	routeGroup.GET("/connectedTappersCount", controllers.GetConnectedTappersCount)
 	routeGroup.GET("/tap", controllers.GetTappingStatus)
 
-	routeGroup.GET("/auth", controllers.GetAuthStatus)
-
-	routeGroup.GET("/analyze", controllers.AnalyzeInformation)
-
-	routeGroup.GET("/general", controllers.GetGeneralStats) // get general stats about entries in DB
+	routeGroup.GET("/general", controllers.GetGeneralStats)
+	routeGroup.GET("/trafficStats", controllers.GetTrafficStats)
 
 	routeGroup.GET("/resolving", controllers.GetCurrentResolvingInformation)
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-errors/errors"
-	"github.com/up9inc/mizu/logger"
+	"github.com/kubeshark/kubeshark/logger"
 )
 
 func findSsllib(procfs string, pid uint32) (string, error) {
@@ -46,7 +46,7 @@ func findLibraryByPid(procfs string, pid uint32, libraryName string) (string, er
 
 		filepath := parts[5]
 
-		if !strings.Contains(filepath, libraryName) {
+		if libraryName != "" && !strings.Contains(filepath, libraryName) {
 			continue
 		}
 

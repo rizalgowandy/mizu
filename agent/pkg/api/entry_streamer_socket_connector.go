@@ -3,9 +3,9 @@ package api
 import (
 	"fmt"
 
+	"github.com/kubeshark/kubeshark/agent/pkg/models"
+	tapApi "github.com/kubeshark/kubeshark/tap/api"
 	basenine "github.com/up9inc/basenine/client/go"
-	"github.com/up9inc/mizu/agent/pkg/models"
-	tapApi "github.com/up9inc/mizu/tap/api"
 )
 
 type EntryStreamerSocketConnector interface {
@@ -22,7 +22,16 @@ func (e *DefaultEntryStreamerSocketConnector) SendEntry(socketId int, entry *tap
 	if params.EnableFullEntries {
 		message, _ = models.CreateFullEntryWebSocketMessage(entry)
 	} else {
-		extension := extensionsMap[entry.Protocol.Name]
+		protocol, ok := protocolsMap[entry.Protocol.ToString()]
+		if !ok {
+			return fmt.Errorf("protocol not found, protocol: %v", protocol)
+		}
+
+		extension, ok := extensionsMap[protocol.Name]
+		if !ok {
+			return fmt.Errorf("extension not found, extension: %v", protocol.Name)
+		}
+
 		base := extension.Dissector.Summarize(entry)
 		message, _ = models.CreateBaseEntryWebSocketMessage(base)
 	}

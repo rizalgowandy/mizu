@@ -7,15 +7,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/up9inc/mizu/tap/api"
+	"github.com/kubeshark/kubeshark/tap/api"
 )
 
-var _protocol api.Protocol = api.Protocol{
-	Name:            "kafka",
+var _protocol = api.Protocol{
+	ProtocolSummary: api.ProtocolSummary{
+		Name:         "kafka",
+		Version:      "12",
+		Abbreviation: "KAFKA",
+	},
 	LongName:        "Apache Kafka Protocol",
-	Abbreviation:    "KAFKA",
 	Macro:           "kafka",
-	Version:         "12",
 	BackgroundColor: "#000000",
 	ForegroundColor: "#ffffff",
 	FontSize:        11,
@@ -24,10 +26,18 @@ var _protocol api.Protocol = api.Protocol{
 	Priority:        2,
 }
 
+var protocolsMap = map[string]*api.Protocol{
+	_protocol.ToString(): &_protocol,
+}
+
 type dissecting string
 
 func (d dissecting) Register(extension *api.Extension) {
 	extension.Protocol = &_protocol
+}
+
+func (d dissecting) GetProtocols() map[string]*api.Protocol {
+	return protocolsMap
 }
 
 func (d dissecting) Ping() {
@@ -62,7 +72,7 @@ func (d dissecting) Analyze(item *api.OutputChannelItem, resolvedSource string, 
 		elapsedTime = 0
 	}
 	return &api.Entry{
-		Protocol: _protocol,
+		Protocol: _protocol.ProtocolSummary,
 		Capture:  item.Capture,
 		Source: &api.TCP{
 			Name: resolvedSource,
@@ -186,22 +196,20 @@ func (d dissecting) Summarize(entry *api.Entry) *api.BaseEntry {
 	}
 
 	return &api.BaseEntry{
-		Id:             entry.Id,
-		Protocol:       entry.Protocol,
-		Capture:        entry.Capture,
-		Summary:        summary,
-		SummaryQuery:   summaryQuery,
-		Status:         status,
-		StatusQuery:    statusQuery,
-		Method:         method,
-		MethodQuery:    methodQuery,
-		Timestamp:      entry.Timestamp,
-		Source:         entry.Source,
-		Destination:    entry.Destination,
-		IsOutgoing:     entry.Outgoing,
-		Latency:        entry.ElapsedTime,
-		Rules:          entry.Rules,
-		ContractStatus: entry.ContractStatus,
+		Id:           entry.Id,
+		Protocol:     *protocolsMap[entry.Protocol.ToString()],
+		Capture:      entry.Capture,
+		Summary:      summary,
+		SummaryQuery: summaryQuery,
+		Status:       status,
+		StatusQuery:  statusQuery,
+		Method:       method,
+		MethodQuery:  methodQuery,
+		Timestamp:    entry.Timestamp,
+		Source:       entry.Source,
+		Destination:  entry.Destination,
+		IsOutgoing:   entry.Outgoing,
+		Latency:      entry.ElapsedTime,
 	}
 }
 
@@ -244,7 +252,7 @@ func (d dissecting) Represent(request map[string]interface{}, response map[strin
 
 func (d dissecting) Macros() map[string]string {
 	return map[string]string{
-		`kafka`: fmt.Sprintf(`proto.name == "%s"`, _protocol.Name),
+		`kafka`: fmt.Sprintf(`protocol.name == "%s"`, _protocol.Name),
 	}
 }
 

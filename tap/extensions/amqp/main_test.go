@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kubeshark/kubeshark/tap/api"
 	"github.com/stretchr/testify/assert"
-	"github.com/up9inc/mizu/tap/api"
 )
 
 const (
@@ -44,7 +44,7 @@ func TestRegister(t *testing.T) {
 
 func TestMacros(t *testing.T) {
 	expectedMacros := map[string]string{
-		"amqp": `proto.name == "amqp"`,
+		"amqp": `protocol.name == "amqp"`,
 	}
 	dissector := NewDissector()
 	macros := dissector.Macros()

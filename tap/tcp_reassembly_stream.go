@@ -6,7 +6,7 @@ import (
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers" // pulls in all layers decoders
 	"github.com/google/gopacket/reassembly"
-	"github.com/up9inc/mizu/tap/diagnose"
+	"github.com/kubeshark/kubeshark/tap/diagnose"
 )
 
 type tcpReassemblyStream struct {
@@ -151,6 +151,6 @@ func (t *tcpReassemblyStream) ReassemblyComplete(ac reassembly.AssemblerContext)
 	if t.tcpStream.GetIsTapTarget() && !t.tcpStream.GetIsClosed() {
 		t.tcpStream.close()
 	}
-	// do not remove the connection to allow last ACK
-	return false
+
+	return true
 }

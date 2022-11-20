@@ -1,4 +1,4 @@
-module github.com/up9inc/mizu/agent
+module github.com/kubeshark/kubeshark/agent
 
 go 1.17
 
@@ -6,7 +6,6 @@ require (
 	github.com/antelman107/net-wait-go v0.0.0-20210623112055-cf684aebda7b
 	github.com/chanced/openapi v0.0.8
 	github.com/djherbis/atime v1.1.0
-	github.com/getkin/kin-openapi v0.89.0
 	github.com/gin-contrib/pprof v1.3.0
 	github.com/gin-contrib/static v0.0.1
 	github.com/gin-gonic/gin v1.7.7
@@ -16,22 +15,21 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/jinzhu/copier v0.3.5
+	github.com/kubeshark/kubeshark/logger v0.0.0
+	github.com/kubeshark/kubeshark/shared v0.0.0
+	github.com/kubeshark/kubeshark/tap v0.0.0
+	github.com/kubeshark/kubeshark/tap/api v0.0.0
+	github.com/kubeshark/kubeshark/tap/dbgctl v0.0.0
+	github.com/kubeshark/kubeshark/tap/extensions/amqp v0.0.0
+	github.com/kubeshark/kubeshark/tap/extensions/http v0.0.0
+	github.com/kubeshark/kubeshark/tap/extensions/kafka v0.0.0
+	github.com/kubeshark/kubeshark/tap/extensions/redis v0.0.0
 	github.com/nav-inc/datetime v0.1.3
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/orcaman/concurrent-map v1.0.0
 	github.com/stretchr/testify v1.7.0
-	github.com/up9inc/basenine/client/go v0.0.0-20220509204026-c37adfc587f4
-	github.com/up9inc/mizu/logger v0.0.0
-	github.com/up9inc/mizu/shared v0.0.0
-	github.com/up9inc/mizu/tap v0.0.0
-	github.com/up9inc/mizu/tap/api v0.0.0
-	github.com/up9inc/mizu/tap/dbgctl v0.0.0
-	github.com/up9inc/mizu/tap/extensions/amqp v0.0.0
-	github.com/up9inc/mizu/tap/extensions/http v0.0.0
-	github.com/up9inc/mizu/tap/extensions/kafka v0.0.0
-	github.com/up9inc/mizu/tap/extensions/redis v0.0.0
+	github.com/up9inc/basenine/client/go v0.0.0-20220612112747-3b28eeac9c51
 	github.com/wI2L/jsondiff v0.1.1
-	github.com/yalp/jsonpath v0.0.0-20180802001716-5cc68e5049a0
 	k8s.io/api v0.23.3
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v0.23.3
@@ -47,18 +45,17 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
+	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
-	github.com/beevik/etree v1.1.0 // indirect
 	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
 	github.com/chanced/dynamic v0.0.0-20211210164248-f8fadb1d735b // indirect
-	github.com/cilium/ebpf v0.8.0 // indirect
+	github.com/cilium/ebpf v0.9.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/fvbommel/sortorder v1.0.2 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-errors/errors v1.4.2 // indirect
 	github.com/go-logr/logr v1.2.2 // indirect
@@ -84,12 +81,14 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.14.2 // indirect
+	github.com/knightsc/gapstone v0.0.0-20191231144527-6fa5afaf11a9 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mertyildiran/gqlparser/v2 v2.4.6 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
+	github.com/moby/moby v20.10.17+incompatible // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -105,6 +104,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0 // indirect
 	github.com/segmentio/kafka-go v0.4.27 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
+	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/cobra v1.3.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/struCoder/pidusage v0.2.1 // indirect
@@ -144,20 +144,20 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace github.com/up9inc/mizu/logger v0.0.0 => ../logger
+replace github.com/kubeshark/kubeshark/logger v0.0.0 => ../logger
 
-replace github.com/up9inc/mizu/shared v0.0.0 => ../shared
+replace github.com/kubeshark/kubeshark/shared v0.0.0 => ../shared
 
-replace github.com/up9inc/mizu/tap v0.0.0 => ../tap
+replace github.com/kubeshark/kubeshark/tap v0.0.0 => ../tap
 
-replace github.com/up9inc/mizu/tap/api v0.0.0 => ../tap/api
+replace github.com/kubeshark/kubeshark/tap/api v0.0.0 => ../tap/api
 
-replace github.com/up9inc/mizu/tap/extensions/amqp v0.0.0 => ../tap/extensions/amqp
+replace github.com/kubeshark/kubeshark/tap/extensions/amqp v0.0.0 => ../tap/extensions/amqp
 
-replace github.com/up9inc/mizu/tap/extensions/http v0.0.0 => ../tap/extensions/http
+replace github.com/kubeshark/kubeshark/tap/extensions/http v0.0.0 => ../tap/extensions/http
 
-replace github.com/up9inc/mizu/tap/extensions/kafka v0.0.0 => ../tap/extensions/kafka
+replace github.com/kubeshark/kubeshark/tap/extensions/kafka v0.0.0 => ../tap/extensions/kafka
 
-replace github.com/up9inc/mizu/tap/extensions/redis v0.0.0 => ../tap/extensions/redis
+replace github.com/kubeshark/kubeshark/tap/extensions/redis v0.0.0 => ../tap/extensions/redis
 
-replace github.com/up9inc/mizu/tap/dbgctl v0.0.0 => ../tap/dbgctl
+replace github.com/kubeshark/kubeshark/tap/dbgctl v0.0.0 => ../tap/dbgctl
